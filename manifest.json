@@ -1,0 +1,19 @@
+{
+  "manifest_version": 3,
+  "name": "Layla's Snips",
+  "version": "0.3.0",
+  "description": "Suggests user-defined scripts as you type.",
+  "permissions": ["storage", "unlimitedStorage"],
+  "host_permissions": ["<all_urls>"],
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["content.js"],
+      "run_at": "document_idle",
+      "all_frames": true
+    }
+  ],
+  "background": { "service_worker": "background.js" },
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "action": { "default_title": "Layla's Snips" }
+}
