@@ -1,5 +1,6 @@
 <p align="center"> <img src="logo.png" width="180" alt="Laylaverse Logo"> </p>
 Layla’s Snips
+
 Fast, flexible text snippets — everywhere you type.
 
 Layla’s Snips is a lightweight Chrome extension that turns quick text triggers into fully-formatted snippets across the entire web.
@@ -144,3 +145,4 @@ Chrome Web Store listing
 Firefox compatibility
 
 Additional Laylaverse utilities
+
