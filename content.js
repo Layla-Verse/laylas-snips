@@ -410,11 +410,12 @@ function htmlToPlainText(html) {
   const temp = document.createElement('div');
   temp.innerHTML = html;
   
-  // Replace <div> with newlines (common in contentEditable)
-  const divs = temp.querySelectorAll('div');
-  divs.forEach(div => {
-    if (div.previousSibling) {
-      div.insertAdjacentText('beforebegin', '\n');
+  // Replace ALL block elements with newlines before them
+  const blockElements = temp.querySelectorAll('div, p, h1, h2, h3, h4, h5, h6, li, tr');
+  blockElements.forEach(el => {
+    // Add newline before block element if it has a previous sibling
+    if (el.previousSibling && el.previousSibling.nodeType !== 8) { // 8 = comment node
+      el.insertAdjacentText('beforebegin', '\n');
     }
   });
   
@@ -426,9 +427,11 @@ function htmlToPlainText(html) {
   // Get text content
   let text = temp.textContent || temp.innerText || '';
   
-  // Clean up: normalize whitespace but keep intentional newlines
-  text = text.replace(/[ \t]+/g, ' '); // Multiple spaces/tabs to single space
-  text = text.replace(/\n\s+\n/g, '\n\n'); // Clean up newlines with spaces between
+  // Clean up ONLY:
+  // - Remove spaces immediately before/after newlines
+  // - Limit to max 2 consecutive newlines
+  text = text.replace(/ \n/g, '\n'); // Remove spaces before newlines
+  text = text.replace(/\n /g, '\n'); // Remove spaces after newlines  
   text = text.replace(/\n{3,}/g, '\n\n'); // Max 2 consecutive newlines
   
   // Trim leading/trailing whitespace
@@ -445,10 +448,16 @@ function convertToPlainTextWithBreaks(html) {
 }
 
 // Detect if we're in Smartsheets or Google Sheets
-// Detect if we're in Smartsheets (only Smartsheets needs the plain text treatment)
+// Both need plain text with line breaks because they strip HTML on save/enter
 function isSmartsheet() {
   const hostname = window.location.hostname;
   return hostname.includes('smartsheet.com');
+}
+
+function isGoogleSheets() {
+  const hostname = window.location.hostname;
+  const pathname = window.location.pathname;
+  return hostname.includes('docs.google.com') && pathname.includes('/spreadsheets/');
 }
 
 function insertSnippet(snippet) {
@@ -592,8 +601,8 @@ function insertSnippet(snippet) {
         htmlBody = htmlBody.replace(/\$\{url\}/g, window.location.href);
         htmlBody = htmlBody.replace(/\$\{title\}/g, document.title);
         
-        // SMARTSHEETS FIX: For Smartsheets, create text nodes with <br> tags instead of complex HTML
-        if (isSmartsheet()) {
+        // SMARTSHEETS & GOOGLE SHEETS FIX: Both strip HTML on save/enter, create text nodes with <br> tags instead of complex HTML
+        if (isSmartsheet() || isGoogleSheets()) {
           // Convert HTML to plain text
           const plainText = htmlToPlainText(htmlBody);
           
@@ -710,8 +719,8 @@ function insertSnippet(snippet) {
         htmlBody = htmlBody.replace(/\$\{title\}/g, document.title);
         htmlBody = htmlBody.replace(/\$\{cursor\}/g, '');
         
-        // SMARTSHEETS FIX: For Smartsheets, create text nodes with <br> tags instead of complex HTML
-        if (isSmartsheet()) {
+        // SMARTSHEETS & GOOGLE SHEETS FIX: Both strip HTML on save/enter, create text nodes with <br> tags instead of complex HTML
+        if (isSmartsheet() || isGoogleSheets()) {
           // Convert HTML to plain text
           const plainText = htmlToPlainText(htmlBody);
           
