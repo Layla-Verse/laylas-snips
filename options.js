@@ -17,6 +17,25 @@ function stripHtml(html) {
     return temp.textContent || temp.innerText || '';
 }
 
+// Search filter state
+let searchQuery = '';
+
+function filterSnippetsBySearch(snips, query) {
+    if (!query || query.trim() === '') {
+        return snips;
+    }
+    
+    const lowerQuery = query.toLowerCase().trim();
+    
+    return snips.filter(snip => {
+        const triggerMatch = (snip.trigger || '').toLowerCase().includes(lowerQuery);
+        const handleMatch = (snip.handle || '').toLowerCase().includes(lowerQuery);
+        const bodyMatch = stripHtml(snip.body || '').toLowerCase().includes(lowerQuery);
+        
+        return triggerMatch || handleMatch || bodyMatch;
+    });
+}
+
 function initElements() {
     console.log('→ Initializing elements...');
     
@@ -34,6 +53,10 @@ function initElements() {
     debugBtn = document.getElementById('debug-btn');
     clearStorageBtn = document.getElementById('clear-storage-btn');
     expandAllToggle = document.getElementById('expand-all-toggle');
+    
+    // Search elements
+    const searchInput = document.getElementById('trigger-search');
+    const searchClearBtn = document.getElementById('search-clear-btn');
     
     // Panels and editors
     triggersList = document.getElementById('triggers-list');
@@ -76,9 +99,26 @@ function renderTriggersList() {
         return;
     }
 
+    // Filter snippets based on search query
+    const filteredSnippets = filterSnippetsBySearch(snippets, searchQuery);
+    
+    if (filteredSnippets.length === 0) {
+        triggersList.innerHTML = `
+            <div style="padding: 2rem 1rem; text-align: center; color: #718096;">
+                <p>No results found</p>
+                <p style="font-size: 0.85rem; margin-top: 0.5rem;">Try a different search term</p>
+            </div>
+        `;
+        updateSnipCount();
+        return;
+    }
+
     // Group snippets by trigger (case-insensitive)
     const groups = {};
-    snippets.forEach((snip, index) => {
+    filteredSnippets.forEach((snip, origIndex) => {
+        // Find the original index in the full snippets array
+        const index = snippets.indexOf(snip);
+        
         const trigger = snip.trigger || 'untitled';
         const triggerLower = trigger.toLowerCase();
         if (!groups[triggerLower]) {
@@ -129,6 +169,12 @@ function renderTriggersList() {
         const itemsDiv = document.createElement('div');
         itemsDiv.className = 'snip-items';
         
+        // Auto-expand groups when searching
+        if (searchQuery && searchQuery.trim() !== '') {
+            itemsDiv.classList.add('expanded');
+            toggle.classList.remove('collapsed');
+        }
+        
         // Add snip items
         groupSnips.forEach(snip => {
             const itemDiv = document.createElement('div');
@@ -142,20 +188,27 @@ function renderTriggersList() {
             const handle = document.createElement('div');
             handle.className = 'snip-handle';
             
-            // Smart handle display: if no handle or generic handle, show snippet body preview
+            // Smart handle display
             const hasValidHandle = snip.handle && 
                                    snip.handle.trim() !== '' && 
                                    snip.handle.toLowerCase() !== 'untitled' && 
                                    snip.handle.toLowerCase() !== 'new snip';
             
+            const hasBody = snip.body && stripHtml(snip.body).trim() !== '';
+            
             if (hasValidHandle) {
+                // Saved handle - normal display
                 handle.textContent = snip.handle;
-            } else {
-                // Show preview of snippet body (first ~30 chars)
+            } else if (hasBody) {
+                // Show preview of snippet body (first ~30 chars) - no italics
                 const bodyPreview = stripHtml(snip.body || '').trim();
                 handle.textContent = bodyPreview.substring(0, 30) + (bodyPreview.length > 30 ? '...' : '');
-                handle.style.fontStyle = 'italic';
                 handle.style.opacity = '0.8';
+            } else {
+                // Empty snip - show placeholder - gray but no italics
+                handle.textContent = 'New Snip (unsaved)';
+                handle.style.opacity = '0.5';
+                handle.style.color = '#a0aec0';
             }
             
             itemDiv.appendChild(handle);
@@ -417,33 +470,7 @@ function handleFileImport(event) {
             if (file.name.endsWith('.json')) {
                 console.log('→ Parsing JSON file');
                 importedSnips = JSON.parse(content);
-            }
-            // Try Excel files (.xlsx, .xls)
-            else if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-                console.log('→ Parsing Excel file');
-                
-                // Read the workbook
-                const workbook = XLSX.read(content, { type: 'binary' });
-                
-                // Get first sheet
-                const sheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[sheetName];
-                
-                // Convert to JSON (header row is expected)
-                const data = XLSX.utils.sheet_to_json(worksheet);
-                
-                console.log('→ Parsed Excel data:', data.length, 'rows');
-                
-                // Map to our snip format
-                // Expected columns: trigger, handle, body
-                // or: Trigger, Handle, Body (case insensitive)
-                importedSnips = data.map(row => ({
-                    trigger: row.trigger || row.Trigger || '',
-                    handle: row.handle || row.Handle || row.trigger || 'Imported',
-                    body: row.body || row.Body || ''
-                }));
-                
-                alert(`✅ Excel file imported successfully!\n\n${importedSnips.length} snips imported.\n\nNote: Excel can preserve some formatting if cells contain HTML.`);
+                console.log(`✓ JSON imported: ${importedSnips.length} snips`);
             }
             // Try CSV
             else if (file.name.endsWith('.csv')) {
@@ -452,191 +479,119 @@ function handleFileImport(event) {
                 // Normalize line endings (Windows \r\n to Unix \n)
                 let normalizedContent = content.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
                 
-                // Check if Papa Parse is available
-                if (typeof Papa !== 'undefined') {
-                    // First, try parsing without assuming headers to detect structure
-                    const previewParse = Papa.parse(normalizedContent, { 
-                        preview: 2,
-                        skipEmptyLines: true,
-                        newline: '\n'
-                    });
+                // Basic CSV parser - split by lines that are NOT inside quotes
+                const rows = [];
+                let currentRow = '';
+                let insideQuotes = false;
+                
+                for (let i = 0; i < normalizedContent.length; i++) {
+                    const char = normalizedContent[i];
                     
-                    let hasHeaders = false;
-                    if (previewParse.data.length > 0) {
-                        const firstRow = previewParse.data[0];
-                        // Check if first row looks like headers
-                        hasHeaders = firstRow.some(cell => 
-                            cell && (
-                                cell.toLowerCase() === 'trigger' || 
-                                cell.toLowerCase() === 'handle' || 
-                                cell.toLowerCase() === 'body'
-                            )
-                        );
-                    }
-                    
-                    console.log(`→ CSV has headers: ${hasHeaders}`);
-                    
-                    const parsed = Papa.parse(normalizedContent, { 
-                        header: hasHeaders, 
-                        skipEmptyLines: 'greedy',  // Skip all empty lines including in multiline
-                        newline: '\n',
-                        quoteChar: '"',
-                        escapeChar: '"'
-                    });
-                    
-                    if (parsed.errors.length > 0) {
-                        console.warn('CSV parse warnings:', parsed.errors);
-                    }
-                    
-                    console.log(`→ Papa parsed ${parsed.data.length} rows`);
-                    
-                    if (hasHeaders) {
-                        // Standard format with headers
-                        importedSnips = parsed.data.map(row => {
-                            let body = row.body || row.Body || row.snippet || row.Snippet || '';
-                            body = body.replace(/\n/g, '<br>');
-                            
-                            const trigger = row.trigger || row.Trigger || '';
-                            if (!trigger || !body) return null;
-                            
-                            return {
-                                trigger: trigger,
-                                handle: row.handle || row.Handle || trigger,
-                                body: body
-                            };
-                        }).filter(snip => snip !== null);
+                    if (char === '"') {
+                        insideQuotes = !insideQuotes;
+                        currentRow += char;
+                    } else if (char === '\n' && !insideQuotes) {
+                        if (currentRow.trim()) {
+                            rows.push(currentRow.trim());
+                        }
+                        currentRow = '';
                     } else {
-                        // No headers - assume structure: [trigger, ?, body, ?, metadata]
-                        importedSnips = parsed.data.map(row => {
-                            if (!Array.isArray(row) || row.length < 3) return null;
-                            
-                            const trigger = (row[0] || '').trim();
-                            let body = (row[2] || '').trim();
-                            
-                            // Skip if no trigger or body
-                            if (!trigger || !body) return null;
-                            
-                            // Convert line breaks to <br>
-                            body = body.replace(/\n/g, '<br>');
-                            
-                            return {
-                                trigger: trigger,
-                                handle: trigger, // Use trigger as handle
-                                body: body
-                            };
-                        }).filter(snip => snip !== null);
+                        currentRow += char;
                     }
-                } else {
-                    // Fallback CSV parser if Papa Parse fails to load
-                    console.warn('⚠️ Papa Parse not available, using fallback parser');
-                    
-                    // Use a more robust CSV parsing approach
-                    // Split by lines that are NOT inside quotes
-                    const rows = [];
-                    let currentRow = '';
+                }
+                if (currentRow.trim()) rows.push(currentRow.trim());
+                
+                // Detect headers
+                const firstLine = rows[0].toLowerCase();
+                const hasHeaders = firstLine.includes('trigger') || firstLine.includes('handle') || firstLine.includes('body');
+                const startIdx = hasHeaders ? 1 : 0;
+                
+                // Parse individual CSV row
+                const parseCSVRow = (row) => {
+                    const cells = [];
+                    let currentCell = '';
                     let insideQuotes = false;
                     
-                    for (let i = 0; i < normalizedContent.length; i++) {
-                        const char = normalizedContent[i];
+                    for (let i = 0; i < row.length; i++) {
+                        const char = row[i];
                         
                         if (char === '"') {
                             insideQuotes = !insideQuotes;
-                            currentRow += char;
-                        } else if (char === '\n' && !insideQuotes) {
-                            if (currentRow.trim()) {
-                                rows.push(currentRow.trim());
-                            }
-                            currentRow = '';
+                        } else if (char === ',' && !insideQuotes) {
+                            cells.push(currentCell.replace(/^"|"$/g, '').trim());
+                            currentCell = '';
                         } else {
-                            currentRow += char;
+                            currentCell += char;
                         }
                     }
-                    if (currentRow.trim()) rows.push(currentRow.trim());
+                    cells.push(currentCell.replace(/^"|"$/g, '').trim());
+                    return cells;
+                };
+                
+                importedSnips = [];
+                
+                for (let i = startIdx; i < rows.length; i++) {
+                    const cells = parseCSVRow(rows[i]);
                     
-                    // Detect headers
-                    const firstLine = rows[0].toLowerCase();
-                    const hasHeaders = firstLine.includes('trigger') || firstLine.includes('handle') || firstLine.includes('body');
-                    const startIdx = hasHeaders ? 1 : 0;
-                    
-                    // Parse rows
-                    const parseCSVRow = (row) => {
-                        const cells = [];
-                        let currentCell = '';
-                        let insideQuotes = false;
+                    if (hasHeaders) {
+                        // Parse with headers
+                        const headers = parseCSVRow(rows[0]);
+                        const row = {};
+                        headers.forEach((header, idx) => {
+                            row[header.toLowerCase()] = cells[idx] || '';
+                        });
                         
-                        for (let i = 0; i < row.length; i++) {
-                            const char = row[i];
-                            
-                            if (char === '"') {
-                                insideQuotes = !insideQuotes;
-                            } else if (char === ',' && !insideQuotes) {
-                                cells.push(currentCell.replace(/^"|"$/g, '').trim());
-                                currentCell = '';
-                            } else {
-                                currentCell += char;
-                            }
-                        }
-                        cells.push(currentCell.replace(/^"|"$/g, '').trim());
-                        return cells;
-                    };
-                    
-                    importedSnips = [];
-                    
-                    for (let i = startIdx; i < rows.length; i++) {
-                        const cells = parseCSVRow(rows[i]);
+                        const trigger = row.trigger || '';
+                        const handle = row.handle || trigger || 'Imported';
+                        let body = row.body || '';
                         
-                        if (hasHeaders) {
-                            const headers = parseCSVRow(rows[0]);
-                            const row = {};
-                            headers.forEach((header, idx) => {
-                                row[header] = cells[idx] || '';
-                            });
-                            
-                            const trigger = row.trigger || row.Trigger || '';
-                            let body = row.body || row.Body || '';
-                            
-                            if (!trigger || !body) continue;
-                            
-                            body = body.replace(/\n/g, '<br>');
-                            
-                            importedSnips.push({
-                                trigger: trigger,
-                                handle: row.handle || row.Handle || trigger,
-                                body: body
-                            });
-                        } else {
-                            // No headers format: [trigger, ?, body, ?, metadata]
-                            if (cells.length < 3) continue;
-                            
-                            const trigger = cells[0].trim();
-                            let body = cells[2].trim();
-                            
-                            if (!trigger || !body) continue;
-                            
-                            body = body.replace(/\n/g, '<br>');
-                            
-                            importedSnips.push({
-                                trigger: trigger,
-                                handle: trigger,
-                                body: body
-                            });
-                        }
+                        if (!trigger || !body) continue;
+                        
+                        // Convert line breaks to <br>
+                        body = body.replace(/\n/g, '<br>');
+                        
+                        importedSnips.push({
+                            trigger: trigger,
+                            handle: handle,
+                            body: body
+                        });
+                    } else {
+                        // No headers format: [trigger, handle, body]
+                        if (cells.length < 3) continue;
+                        
+                        const trigger = cells[0].trim();
+                        const handle = cells[1].trim() || trigger;
+                        let body = cells[2].trim();
+                        
+                        if (!trigger || !body) continue;
+                        
+                        // Convert line breaks to <br>
+                        body = body.replace(/\n/g, '<br>');
+                        
+                        importedSnips.push({
+                            trigger: trigger,
+                            handle: handle,
+                            body: body
+                        });
                     }
                 }
                 
-                console.log(`✓ CSV imported: ${importedSnips.length} snips with line break preservation`);
-                alert(`✅ CSV file imported successfully!\n\n${importedSnips.length} snips imported.\n\nNote: Line breaks from your CSV have been preserved as formatting!`);
+                console.log(`✓ CSV imported: ${importedSnips.length} snips`);
             } else {
-                throw new Error('Unsupported file type');
+                throw new Error('Unsupported file type. Please use .json or .csv files.');
             }
             
             if (!Array.isArray(importedSnips)) {
                 throw new Error('Invalid format: expected array of snippets');
             }
             
+            if (importedSnips.length === 0) {
+                throw new Error('No valid snippets found in file');
+            }
+            
             console.log('→ Imported', importedSnips.length, 'snippets');
             
-            // Merge with existing snippets - NO DEDUPLICATION
+            // Merge with existing snippets
             snippets = [...snippets, ...importedSnips];
             
             // Save to storage
@@ -658,13 +613,7 @@ function handleFileImport(event) {
         showStatus('⚠️ Error reading file!', 'error');
     };
     
-    // Read Excel files as binary, others as text
-    if (file.name.endsWith('.xlsx') || file.name.endsWith('.xls')) {
-        reader.readAsBinaryString(file);
-    } else {
-        reader.readAsText(file);
-    }
-    
+    reader.readAsText(file);
     event.target.value = '';
 }
 
@@ -747,6 +696,38 @@ function setupFormattingToolbar() {
             }
             
             // Return focus to editor
+            snipBodyEditor.focus();
+        });
+    });
+    
+    // Color palette buttons
+    const colorBtns = document.querySelectorAll('.color-btn');
+    colorBtns.forEach(btn => {
+        btn.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+        });
+        
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            
+            const color = btn.dataset.color;
+            
+            // Apply highlight color
+            snipBodyEditor.focus();
+            const success = document.execCommand('hiliteColor', false, color);
+            
+            if (success) {
+                console.log(`Applied highlight color: ${color}`);
+                
+                // Visual feedback - briefly highlight the active button
+                colorBtns.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                setTimeout(() => btn.classList.remove('active'), 300);
+            } else {
+                console.warn(`Failed to apply highlight color: ${color}`);
+            }
+            
             snipBodyEditor.focus();
         });
     });
@@ -873,6 +854,32 @@ function attachEventListeners() {
     clearStorageBtn.addEventListener('click', (e) => {
         e.preventDefault();
         clearAllStorage();
+    });
+    
+    // Search functionality
+    const searchInput = document.getElementById('trigger-search');
+    const searchClearBtn = document.getElementById('search-clear-btn');
+    
+    searchInput.addEventListener('input', (e) => {
+        searchQuery = e.target.value;
+        
+        // Show/hide clear button
+        if (searchQuery.trim() !== '') {
+            searchClearBtn.classList.add('visible');
+        } else {
+            searchClearBtn.classList.remove('visible');
+        }
+        
+        renderTriggersList();
+    });
+    
+    searchClearBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        searchInput.value = '';
+        searchQuery = '';
+        searchClearBtn.classList.remove('visible');
+        renderTriggersList();
+        searchInput.focus();
     });
     
     setupFormattingToolbar();
