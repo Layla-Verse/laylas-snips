@@ -1,148 +1,165 @@
 <p align="center"> <img src="logo.png" width="180" alt="Laylaverse Logo"> </p>
 Layla’s Snips
+A lightweight Chrome extension for fast, reliable text snippet expansion.
 
-Fast, flexible text snippets — everywhere you type.
+Layla’s Snips provides a simple, consistent way to generate and use text snippets across nearly all text fields on the web. The extension detects whether you’re typing in a plain-text field or a rich-text editor and inserts your saved snippets with clean, predictable formatting.
 
-Layla’s Snips is a lightweight Chrome extension that turns quick text triggers into fully-formatted snippets across the entire web.
-Whether you're typing in plain text inputs, emails, CRMs, documentation tools, LMS systems, or rich-text editors, Layla keeps your workflow fast, clean, and consistent.
+Built as part of the Laylaverse, this tool is designed for clarity, efficiency, and full local privacy.
 
-Designed as part of the Laylaverse, this tool focuses on clarity, speed, and privacy — no data collection, no tracking, no nonsense.
-
-✨ Features
-
+✨ Key Features
 Universal Trigger Expansion
-Type \your-trigger and Layla expands it instantly across most text fields on the web.
 
-Smart Field Detection
+Type \your-trigger anywhere to expand a saved snippet instantly.
+
+Works in both single-line and multi-line input environments.
+
+Intelligent Field Detection
+
 Automatically adapts to:
 
-Plain-text inputs (forms, LMS, lab systems, etc.)
+Plain-text fields (forms, lab systems, documentation systems, LMS platforms)
 
 Rich-text editors (Gmail, CRMs, contentEditable surfaces)
 
-Nested editors and iframe-based platforms
+Nested editor and iframe environments used by platforms like Salesforce, ServiceNow, and HubSpot
 
-Clean, Predictable Formatting
+Clean Formatting Engine
 
-Strips HTML when you’re typing in plain text inputs
+Strips HTML when inserting into plain-text inputs
 
-Preserves styling in supported rich-text editors
+Preserves formatting (bold, italic, underline) in rich editors
 
-Handles line breaks and formatting consistently across platforms
+Normalizes line breaks and avoids unwanted <div> / <span> artifacts
 
-Suggestion Menu
+Produces consistent formatting across heterogeneous platforms
 
-Appears as you type
+Smart Suggestion Menu
 
-Keyboard-friendly (↑, ↓, Enter, Esc)
+Appears as soon as you begin typing a trigger
 
-Shows snippet triggers, names, and a body preview
+Keyboard navigation: ↑ ↓ Enter Esc
 
-Unlimited Snippets
-All data is stored locally using Chrome’s chrome.storage.local — no cloud, no servers, no exports from your machine.
+Displays trigger, label, and a body preview
 
-🚀 Installation (Until Chrome Web Store Release)
+Works inside iframes and complex editing contexts
 
-Clone or download this repository
+Local, Unlimited Storage
 
-Open: chrome://extensions/
+Stores all snippets using chrome.storage.local
 
-Enable Developer mode
+No upload, sync, or external server contact
 
-Select Load unpacked
+Unlimited snippet capacity
 
-Choose the laylas-snips/ folder
+🚀 Installation (Pre–Chrome Web Store)
 
-Layla will be ready instantly — no build steps required.
+Download or clone this repository
 
-🛠 Using Layla’s Snips
+Open chrome://extensions/
 
-Open the Layla’s Snips Options page
+Enable Developer Mode
 
-Create a snippet with:
+Click Load unpacked
 
-Trigger (e.g., clinic-email)
+Select the laylas-snips/ directory
 
-Handle / Display name (optional)
+Once loaded, the extension is active immediately.
 
-Body (plain or rich text)
+🛠 How to Use
 
-Type your trigger anywhere using:
+Open the Options page from the extension menu
 
-\clinic-email
+Create a new snippet:
+
+Trigger: The text after the backslash (e.g., greeting-email)
+
+Handle: Optional display name
+
+Body: The snippet content (plain or formatted)
+
+Type your trigger anywhere on the web using:
+
+\greeting-email
 
 
-Layla inserts the formatted content automatically.
+Layla inserts the stored content into the field automatically.
 
-Works across:
+Works reliably with:
 
 Gmail & webmail
 
-CRMs & EHR/LMS systems
+CRMs (Salesforce, HubSpot, Zoho)
 
-Documentation tools
+Lab Management Systems
 
-Salesforce, HubSpot, ServiceNow
+EHR / documentation platforms
 
-Web forms and input fields
+Textareas & standard HTML inputs
 
-Nearly any contentEditable surface
+contentEditable editors
 
-🌌 Formatting Engine
+Web-based note-taking tools
 
-Layla’s Formatting Engine ensures output is clean and professional:
+🌌 Formatting Behavior
 
-<div> → becomes proper line breaks
+Layla’s formatting engine converts content as needed:
 
-<br> → line breaks preserved
+<div>, <p> → Line breaks
 
-HTML stripped in plain text
+<br> → Line breaks
 
-Styling preserved in rich editors
+Raw HTML removed in plain-text fields
 
-No leftover <span> or <p> clutter
+Styling preserved in supported rich-text editors
 
-Your notes stay readable, clean, and consistent — everywhere.
+Outputs consistent, clean text without markup clutter
 
 📄 Privacy & Security
 
-Layla’s Snips collects zero data.
-It stores everything locally, on your device, using Chrome’s built-in storage.
+Layla’s Snips collects no data.
 
-It does not:
+Stored locally:
 
-Collect or transmit keystrokes
+Snippets
 
-Log your activity
+Handles
 
-Send data to servers
+Rich-text content
 
-Use analytics, cookies, or trackers
+Settings
+
+The extension:
+
+Does not transmit keystrokes
+
+Does not log activity
+
+Does not use cookies, analytics, or external servers
 
 Full Privacy Policy:
 https://layla-verse.github.io/laylas-snips/privacy-policy.html
 
 🪐 About the Laylaverse
 
-The Laylaverse is an independent software identity focused on building simple, elegant tools that reduce daily friction.
-Layla’s Snips is the first public release — a growing constellation of utilities designed to make digital work smoother, faster, and more intuitive.
+The Laylaverse is an independent software identity focused on building lightweight, efficient tools that improve workflow quality. Layla’s Snips is the first public utility in this ecosystem, with additional extensions and tools planned.
 
 📬 Contact
 
-For support, feature ideas, or contributions:
+For support, contributions, or collaboration inquiries:
 laylaverse.dev@gmail.com
 
 ⭐ Roadmap
 
-Snippet import/export
+Future planned improvements include:
+
+Snippet import & export
 
 Optional cloud sync
 
-Public snippet libraries
+Public snippet template libraries
 
-Chrome Web Store listing
+Chrome Web Store availability
 
 Firefox compatibility
 
-Additional Laylaverse utilities
-
+Additional Laylaverse productivity tools
